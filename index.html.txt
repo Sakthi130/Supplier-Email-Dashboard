@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Supplier Email Dashboard</title>
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600&display=swap" rel="stylesheet">
+  <style>
+    body { font-family: 'Manrope', sans-serif; background: #f8fafc; color: #222; margin: 0; padding: 24px; }
+    h1 { margin-bottom: 12px; color: #09b367; }
+    .cards { display: flex; gap: 16px; }
+    .card { background: white; border-radius: 10px; padding: 16px; box-shadow: 0 4px 10px rgba(0,0,0,0.08); flex: 1; cursor: pointer; }
+    .count { font-size: 28px; font-weight: 700; color: #09b367; }
+    .label { color: #555; }
+    table { width: 100%; border-collapse: collapse; margin-top: 20px; background: white; border-radius: 8px; overflow: hidden; }
+    th, td { padding: 10px; text-align: left; border-bottom: 1px solid #eee; }
+    th { background: #f1f1f1; }
+    button { background: #09b367; border: none; color: white; padding: 6px 10px; border-radius: 6px; cursor: pointer; }
+    button:hover { background: #078c58; }
+  </style>
+</head>
+<body>
+  <h1>Supplier Email Dashboard</h1>
+  <div class="cards">
+    <div class="card"><div class="label">Today</div><div class="count" id="today">0</div></div>
+    <div class="card"><div class="label">Yesterday</div><div class="count" id="yesterday">0</div></div>
+    <div class="card"><div class="label">Older</div><div class="count" id="older">0</div></div>
+    <div class="card"><div class="label">Total Open</div><div class="count" id="total">0</div></div>
+  </div>
+
+  <div id="table-container"></div>
+
+  <script>
+    const SHEET_URL = "https://docs.google.com/spreadsheets/d/e/YOUR_PUBLISHED_LINK/pub?output=csv";
+
+    async function fetchSheetData() {
+      const response = await fetch(SHEET_URL);
+      const text = await response.text();
+      const rows = text.split("\n").map(r => r.split(","));
+      const headers = rows[0];
+      const data = rows.slice(1).map(r => Object.fromEntries(r.map((v,i)=>[headers[i],v])));
+      return data.filter(r => r.status !== "Closed");
+    }
+
+    function categorize(data) {
+      const today = new Date();
+      const startOfToday = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+      const startOfYesterday = new Date(startOfToday); startOfYesterday.setDate(startOfYesterday.getDate() - 1);
+
+      let counts = { today:0, yesterday:0, older:0, total:0 };
+      data.forEach(d => {
+        const date = new Date(d.date);
+        if (isNaN(date)) return;
+        if (date >= startOfToday) counts.today++;
+        else if (date >= startOfYesterday) counts.yesterday++;
+        else counts.older++;
+        counts.total++;
+      });
+      return counts;
+    }
+
+    function renderTable(data) {
+      const container = document.getElementById("table-container");
+      if (data.length === 0) { container.innerHTML = "<p>No open emails 🎉</p>"; return; }
+
+      let html = "<table><tr><th>From</th><th>Subject</th><th>Date</th><th>Action</th></tr>";
+      data.forEach(d => {
+        html += `<tr>
+          <td>${d.from}</td>
+          <td>${d.subject}</td>
+          <td>${d.date}</td>
+          <td><a href="YOUR_FORM_LINK?usp=pp_url&entry.msgId=${d.msgId}" target="_blank"><button>Close</button></a></td>
+        </tr>`;
+      });
+      html += "</table>";
+      container.innerHTML = html;
+    }
+
+    async function loadDashboard() {
+      const data = await fetchSheetData();
+      const counts = categorize(data);
+      document.getElementById("today").textContent = counts.today;
+      document.getElementById("yesterday").textContent = counts.yesterday;
+      document.getElementById("older").textContent = counts.older;
+      document.getElementById("total").textContent = counts.total;
+      renderTable(data);
+    }
+
+    loadDashboard();
+  </script>
+</body>
+</html>
