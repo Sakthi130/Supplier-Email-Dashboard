@@ -30,64 +30,102 @@
   <div id="table-container"></div>
 
   <script>
-    const SHEET_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTLiqTx5i_HBFszRofx4ItO9IZPTGNJxN87iAK4ckHSyFMfFeN1F56M7RQ17LBLBZdqZHmB8UXck4GE/pub?gid=0&single=true&output=csv";
+  const SHEET_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTLiqTx5i_HBFszRofx4ItO9IZPTGNJxN87iAK4ckHSyFMfFeN1F56M7RQ17LBLBZdqZHmB8UXck4GE/pub?gid=0&single=true&output=csv";
 
-    async function fetchSheetData() {
-      const response = await fetch(SHEET_URL);
-      const text = await response.text();
-      const rows = text.split("\n").map(r => r.split(","));
-      const headers = rows[0];
-      const data = rows.slice(1).map(r => Object.fromEntries(r.map((v,i)=>[headers[i],v])));
-      return data.filter(r => r.status !== "Closed");
+  // --- CSV Parser that handles commas inside quotes ---
+  function parseCSV(text) {
+    const rows = [];
+    let row = [];
+    let value = '';
+    let inQuotes = false;
+
+    for (let i = 0; i < text.length; i++) {
+      const char = text[i];
+      const next = text[i + 1];
+
+      if (char === '"' && inQuotes && next === '"') {
+        // escaped quote
+        value += '"';
+        i++;
+      } else if (char === '"') {
+        inQuotes = !inQuotes;
+      } else if (char === ',' && !inQuotes) {
+        row.push(value);
+        value = '';
+      } else if ((char === '\n' || char === '\r') && !inQuotes) {
+        if (value || row.length) {
+          row.push(value);
+          rows.push(row);
+          row = [];
+          value = '';
+        }
+      } else {
+        value += char;
+      }
     }
+    if (value || row.length) row.push(value), rows.push(row);
+    return rows;
+  }
 
-    function categorize(data) {
-      const today = new Date();
-      const startOfToday = new Date(today.getFullYear(), today.getMonth(), today.getDate());
-      const startOfYesterday = new Date(startOfToday); startOfYesterday.setDate(startOfYesterday.getDate() - 1);
+  async function fetchSheetData() {
+    const response = await fetch(SHEET_URL);
+    const text = await response.text();
+    const rows = parseCSV(text);
+    const headers = rows[0].map(h => h.trim());
+    const data = rows.slice(1).map(r =>
+      Object.fromEntries(headers.map((h, i) => [h, r[i] ? r[i].trim() : '']))
+    );
+    return data.filter(r => r.status !== "Closed");
+  }
 
-      let counts = { today:0, yesterday:0, older:0, total:0 };
-      data.forEach(d => {
-        const date = new Date(d.date);
-        if (isNaN(date)) return;
-        if (date >= startOfToday) counts.today++;
-        else if (date >= startOfYesterday) counts.yesterday++;
-        else counts.older++;
-        counts.total++;
-      });
-      return counts;
-    }
+  function categorize(data) {
+    const today = new Date();
+    const startOfToday = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+    const startOfYesterday = new Date(startOfToday); startOfYesterday.setDate(startOfYesterday.getDate() - 1);
 
-    function renderTable(data) {
-      const container = document.getElementById("table-container");
-      if (data.length === 0) { container.innerHTML = "<p>No open emails 🎉</p>"; return; }
+    let counts = { today: 0, yesterday: 0, older: 0, total: 0 };
+    data.forEach(d => {
+      const date = new Date(d.date);
+      if (isNaN(date)) return;
+      if (date >= startOfToday) counts.today++;
+      else if (date >= startOfYesterday) counts.yesterday++;
+      else counts.older++;
+      counts.total++;
+    });
+    return counts;
+  }
 
-      let html = "<table><tr><th>From</th><th>Subject</th><th>Date</th><th>Action</th></tr>";
-      data.forEach(d => {
-        html += `<tr>
-          <td>${d.from}</td>
-          <td>${d.subject}</td>
-          <td>${d.date}</td>
-          <td><a href="YOUR_FORM_LINK?usp=pp_url&entry.msgId=${d.msgId}" target="_blank"><button>Close</button></a></td>
-        </tr>`;
-      });
-      html += "</table>";
-      container.innerHTML = html;
-    }
+  function renderTable(data) {
+    const container = document.getElementById("table-container");
+    if (data.length === 0) { container.innerHTML = "<p>No open emails 🎉</p>"; return; }
 
-    async function loadDashboard() {
-      const data = await fetchSheetData();
-      const counts = categorize(data);
-      document.getElementById("today").textContent = counts.today;
-      document.getElementById("yesterday").textContent = counts.yesterday;
-      document.getElementById("older").textContent = counts.older;
-      document.getElementById("total").textContent = counts.total;
-      renderTable(data);
-    }
+    let html = "<table><tr><th>From</th><th>Subject</th><th>Date</th><th>Action</th></tr>";
+    data.forEach(d => {
+      html += `<tr>
+        <td>${d.from}</td>
+        <td>${d.subject}</td>
+        <td>${d.date}</td>
+        <td><a href="YOUR_FORM_LINK?usp=pp_url&entry.msgId=${d.msgId}" target="_blank"><button>Close</button></a></td>
+      </tr>`;
+    });
+    html += "</table>";
+    container.innerHTML = html;
+  }
 
-    loadDashboard();
-  </script>
+  async function loadDashboard() {
+    const data = await fetchSheetData();
+    const counts = categorize(data);
+    document.getElementById("today").textContent = counts.today;
+    document.getElementById("yesterday").textContent = counts.yesterday;
+    document.getElementById("older").textContent = counts.older;
+    document.getElementById("total").textContent = counts.total;
+    renderTable(data);
+  }
+
+  loadDashboard();
+</script>
 </body>
 
 </html>
+
 
