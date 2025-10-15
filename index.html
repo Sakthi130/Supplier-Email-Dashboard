@@ -69,7 +69,7 @@
     // Refresh every 5 minutes
     setInterval(() => location.reload(), 5 * 60 * 1000);
 
-    const SHEET_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTLiqTx5i_HBFszRofx4ItO9IZPTGNJxN87iAK4ckHSyFMfFeN1F56M7RQ17LBLBZdqZHmB8UXck4GE/pub?gid=0&single=true&output=csv";
+    const SHEET_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTLiqTx5i_HBFszRofx4ItO9IZPTGNJxN87iAK4ckHSyFMfFeN1F56M7RQ17LBLBZdqZHmB8UXck4GE/pub?gid=307971943&single=true&output=csv";
     const FORM_RESPONSES_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTLiqTx5i_HBFszRofx4ItO9IZPTGNJxN87iAK4ckHSyFMfFeN1F56M7RQ17LBLBZdqZHmB8UXck4GE/pub?gid=559400576&single=true&output=csv"; // 🔹 Replace this with your Form Responses CSV URL
 
     const EXCLUDED_REPLYTO = [
@@ -119,11 +119,11 @@
       // Filter rules
       const filtered = emailData.filter(r => {
         const replyto = (r.replyto || "").trim();
-        const status = (r.status || "").toLowerCase();
+        const status = (r.status2 || "").toLowerCase();
         const msgId = (r.msgId || "").trim();
 
         const excludedReply = EXCLUDED_REPLYTO.some(x => replyto.includes(x));
-        const isClosed = status === "closed";
+        const isClosed = status2 === "closed";
         const alreadyClosedViaForm = closedMsgIds.has(msgId);
 
         return !excludedReply && !isClosed && !alreadyClosedViaForm;
@@ -169,4 +169,5 @@
   </script>
 </body>
 </html>
+
 
