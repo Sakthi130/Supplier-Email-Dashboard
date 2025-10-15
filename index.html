@@ -109,7 +109,12 @@
         fetchCSVData(FORM_RESPONSES_URL)
       ]);
 
-      const closedMsgIds = new Set(formData.map(r => (r.msgId || "").trim()));
+    const closedMsgIds = new Set(
+      formData
+        .map(r => (r.msgID || "").trim())
+        .filter(id => id !== "")
+    );
+
 
       // Filter rules
       const filtered = emailData.filter(r => {
@@ -164,3 +169,4 @@
   </script>
 </body>
 </html>
+
