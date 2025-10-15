@@ -123,7 +123,7 @@
         const msgId = (r.msgId || "").trim();
 
         const excludedReply = EXCLUDED_REPLYTO.some(x => replyto.includes(x));
-        const isClosed = status2 === "closed";
+        const isClosed = status === "closed";
         const alreadyClosedViaForm = closedMsgIds.has(msgId);
 
         return !excludedReply && !isClosed && !alreadyClosedViaForm;
@@ -169,5 +169,6 @@
   </script>
 </body>
 </html>
+
 
 
