@@ -125,8 +125,9 @@
         const excludedReply = EXCLUDED_REPLYTO.some(x => replyto.includes(x));
         const isClosed = status === "closed";
         const alreadyClosedViaForm = closedMsgIds.has(msgId);
+        const isBlankReplyto = replyto === "";
 
-        return !excludedReply && !isClosed && !alreadyClosedViaForm;
+        return !excludedReply && !isClosed && !alreadyClosedViaForm && !isBlankReplyto;
       });
 
       document.getElementById("total").textContent = filtered.length;
@@ -177,6 +178,7 @@
   </script>
 </body>
 </html>
+
 
 
 
