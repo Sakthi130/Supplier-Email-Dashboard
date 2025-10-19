@@ -214,7 +214,7 @@
         return;
       }
 
-      let html = "<table><tr><th>Msg ID</th><th>From</th><th>Subject</th><th>Date</th><th>Status</th><th>Assigned To</th></tr>";
+      let html = "<table><tr><th>Msg ID</th><th>From</th><th>Subject</th><th>Date</th><th>Status</th><th>User</th></tr>";
       data.forEach(d => {
         const statusClass = d.formStatus.toLowerCase().replace(/[^a-z]/g, '');
         html += `<tr>
@@ -234,4 +234,5 @@
   </script>
 </body>
 </html>
+
 
