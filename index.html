@@ -151,7 +151,7 @@
       formData.forEach(r => {
         const msgId = (r.msgID || r.msgId || "").trim();
         const status = (r.Status || r.status || "").trim();
-        const agentEmail = (r['Agent Email'] || r.agentEmail || r.email || "").trim();
+        const agentEmail = (r['Email Address'] || r.agentEmail || r.email || "").trim();
         
         if (msgId !== "") {
           statusMap[msgId] = {
@@ -234,3 +234,4 @@
   </script>
 </body>
 </html>
+
