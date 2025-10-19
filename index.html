@@ -28,21 +28,44 @@
       border-radius: 8px;
       overflow: hidden;
     }
-    th, td { padding: 10px; text-align: left; border-bottom: 1px solid #eee; }
-    th { background: #f1f1f1; }
+    th, td { padding: 10px; text-align: left; border-bottom: 1px solid #eee; font-size: 14px; }
+    th { background: #f1f1f1; font-weight: 600; }
     button {
       background: #09b367;
       border: none;
       color: white;
-      padding: 6px 10px;
+      padding: 8px 16px;
       border-radius: 6px;
       cursor: pointer;
+      font-size: 14px;
+      font-weight: 600;
     }
     button:hover { background: #078c58; }
     #backBtn {
       margin-bottom: 16px;
       background: #ccc;
       color: #222;
+    }
+    #closeBtn {
+      margin-bottom: 16px;
+      background: #09b367;
+      color: white;
+    }
+    .status-badge {
+      display: inline-block;
+      padding: 4px 10px;
+      border-radius: 12px;
+      font-size: 12px;
+      font-weight: 600;
+    }
+    .status-open { background: #fef3c7; color: #92400e; }
+    .status-inprogress { background: #dbeafe; color: #1e40af; }
+    .status-closed { background: #dcfce7; color: #166534; }
+    .status-notapplicable { background: #f3f4f6; color: #374151; }
+    .top-actions {
+      display: flex;
+      gap: 12px;
+      margin-bottom: 16px;
     }
   </style>
 </head>
@@ -61,7 +84,10 @@
 
   <!-- Details Page -->
   <div id="details-page" style="display:none;">
-    <button id="backBtn" onclick="backToSummary()">← Back</button>
+    <div class="top-actions">
+      <button id="backBtn" onclick="backToSummary()">← Back</button>
+      <button id="closeBtn" onclick="openCloseForm()">Close Email</button>
+    </div>
     <div id="table-container"></div>
   </div>
 
@@ -70,12 +96,23 @@
     setInterval(() => location.reload(), 5 * 60 * 1000);
 
     const SHEET_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTLiqTx5i_HBFszRofx4ItO9IZPTGNJxN87iAK4ckHSyFMfFeN1F56M7RQ17LBLBZdqZHmB8UXck4GE/pub?gid=307971943&single=true&output=csv";
-    const FORM_RESPONSES_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTLiqTx5i_HBFszRofx4ItO9IZPTGNJxN87iAK4ckHSyFMfFeN1F56M7RQ17LBLBZdqZHmB8UXck4GE/pub?gid=559400576&single=true&output=csv"; // 🔹 Replace this with your Form Responses CSV URL
+    const FORM_RESPONSES_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTLiqTx5i_HBFszRofx4ItO9IZPTGNJxN87iAK4ckHSyFMfFeN1F56M7RQ17LBLBZdqZHmB8UXck4GE/pub?gid=559400576&single=true&output=csv";
+    const CLOSE_FORM_URL = "https://forms.gle/vQj6t24KsFKLsAHq8";
 
     const EXCLUDED_REPLYTO = [
       "GetYourGuide <do-not-reply@notification.getyourguide.com>",
       "Viator <no-reply@m1.viator.com>"
     ];
+
+    // Extract first name from email (dinesh.v@pickyourtrail.com → Dinesh)
+    function extractName(email) {
+      if (!email || email.trim() === "") return "-";
+      const match = email.match(/([^@]+)@/);
+      if (!match) return "-";
+      const username = match[1];
+      const firstName = username.split('.')[0];
+      return firstName.charAt(0).toUpperCase() + firstName.slice(1);
+    }
 
     // CSV parser that handles quotes and commas
     function parseCSV(text) {
@@ -109,29 +146,50 @@
         fetchCSVData(FORM_RESPONSES_URL)
       ]);
 
-    const closedMsgIds = new Set(
-      formData
-        .map(r => (r.msgID || "").trim())
-        .filter(id => id !== "")
-    );
-
+      // Create a map of msgId → {status, agent}
+      const statusMap = {};
+      formData.forEach(r => {
+        const msgId = (r.msgID || r.msgId || "").trim();
+        const status = (r.Status || r.status || "").trim();
+        const agentEmail = (r['Agent Email'] || r.agentEmail || r.email || "").trim();
+        
+        if (msgId !== "") {
+          statusMap[msgId] = {
+            status: status || "Closed",
+            agent: extractName(agentEmail)
+          };
+        }
+      });
 
       // Filter rules
       const filtered = emailData.filter(r => {
         const replyto = (r.replyto || "").trim();
-        const status = (r.status2 || "").toLowerCase();
         const msgId = (r.msgId || "").trim();
 
         const excludedReply = EXCLUDED_REPLYTO.some(x => replyto.includes(x));
-        const isClosed = status === "closed";
-        const alreadyClosedViaForm = closedMsgIds.has(msgId);
         const isBlankReplyto = replyto === "";
+        
+        // Check if email is closed or not applicable via form responses
+        const formStatus = statusMap[msgId] ? statusMap[msgId].status.toLowerCase() : "";
+        const isClosed = formStatus === "closed" || formStatus === "not applicable";
 
-        return !excludedReply && !isClosed && !alreadyClosedViaForm && !isBlankReplyto;
+        return !excludedReply && !isClosed && !isBlankReplyto;
+      });
+
+      // Attach status info to each email
+      filtered.forEach(email => {
+        const msgId = email.msgId;
+        if (statusMap[msgId]) {
+          email.formStatus = statusMap[msgId].status;
+          email.assignedAgent = statusMap[msgId].agent;
+        } else {
+          email.formStatus = "Open";
+          email.assignedAgent = "-";
+        }
       });
 
       document.getElementById("total").textContent = filtered.length;
-      window.filteredData = filtered; // store globally
+      window.filteredData = filtered;
     }
 
     function showDetails() {
@@ -145,6 +203,10 @@
       document.getElementById("summary-page").style.display = "block";
     }
 
+    function openCloseForm() {
+      window.open(CLOSE_FORM_URL, '_blank');
+    }
+
     function renderTable(data) {
       const container = document.getElementById("table-container");
       if (data.length === 0) {
@@ -152,14 +214,16 @@
         return;
       }
 
-      let html = "<table><tr><th>Msg ID</th><th>From</th><th>Subject</th><th>Date</th><th>Action</th></tr>";
+      let html = "<table><tr><th>Msg ID</th><th>From</th><th>Subject</th><th>Date</th><th>Status</th><th>Assigned To</th></tr>";
       data.forEach(d => {
+        const statusClass = d.formStatus.toLowerCase().replace(/[^a-z]/g, '');
         html += `<tr>
           <td>${d.msgId || '-'}</td>
           <td>${d.from || '-'}</td>
           <td>${d.subject || '-'}</td>
           <td>${d.date || '-'}</td>
-          <td><a href="https://forms.gle/vQj6t24KsFKLsAHq8?usp=pp_url&entry.msgId=${d.msgId}" target="_blank"><button>Close</button></a></td>
+          <td><span class="status-badge status-${statusClass}">${d.formStatus}</span></td>
+          <td>${d.assignedAgent}</td>
         </tr>`;
       });
       html += "</table>";
@@ -167,20 +231,6 @@
     }
 
     loadDashboard();
-    setInterval(() => {
-      const event = new MouseEvent('click', {
-        view: window,
-        bubbles: true,
-        cancelable: true
-      });
-      document.body.dispatchEvent(event);
-    }, 7 * 60 * 1000);
   </script>
 </body>
 </html>
-
-
-
-
-
-
