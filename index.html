@@ -290,6 +290,15 @@
     }
 
     loadDashboard();
+    setInterval(() => {
+      const event = new MouseEvent('click', {
+        view: window,
+        bubbles: true,
+        cancelable: true
+      });
+      document.body.dispatchEvent(event);
+    }, 3 * 60 * 1000);
   </script>
 </body>
 </html>
+
