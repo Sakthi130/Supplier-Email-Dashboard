@@ -7,19 +7,33 @@
   <style>
     body { font-family: 'Manrope', sans-serif; background: #f8fafc; color: #222; margin: 0; padding: 24px; }
     h1 { margin-bottom: 12px; color: #09b367; text-align: center; }
-    .cards { display: flex; justify-content: center; margin-top: 40px; }
+    .cards { display: flex; justify-content: center; gap: 24px; margin-top: 40px; }
     .card {
       background: white;
       border-radius: 14px;
-      padding: 40px 60px;
+      padding: 30px 50px;
       box-shadow: 0 4px 10px rgba(0,0,0,0.08);
       cursor: pointer;
       text-align: center;
       transition: all 0.3s ease;
+      min-width: 180px;
+    }
+    .card.has-aging {
+      padding-bottom: 40px;
     }
     .card:hover { transform: scale(1.03); box-shadow: 0 6px 14px rgba(0,0,0,0.12); }
     .count { font-size: 50px; font-weight: 700; color: #09b367; margin-bottom: 6px; }
-    .label { font-size: 18px; color: #555; }
+    .count.red { color: #dc2626; }
+    .label { font-size: 18px; color: #555; margin-bottom: 12px; }
+    .aging-info {
+      font-size: 12px;
+      color: #888;
+      margin-top: 12px;
+      line-height: 1.6;
+    }
+    .aging-info div {
+      margin: 4px 0;
+    }
     table {
       width: 100%;
       border-collapse: collapse;
@@ -75,9 +89,18 @@
   <!-- Summary Page -->
   <div id="summary-page">
     <div class="cards">
-      <div class="card" onclick="showDetails()">
-        <div class="count" id="total">0</div>
-        <div class="label">Total Emails</div>
+      <div class="card" onclick="showDetails('open')">
+        <div class="count red" id="openCount">0</div>
+        <div class="label">Open</div>
+      </div>
+      <div class="card has-aging" onclick="showDetails('inprogress')">
+        <div class="count" id="inprogressCount">0</div>
+        <div class="label">In-Progress</div>
+        <div class="aging-info" id="agingInfo">
+          <div>>24hrs: <span id="aging24">0</span></div>
+          <div>>48hrs: <span id="aging48">0</span></div>
+          <div>>72hrs: <span id="aging72">0</span></div>
+        </div>
       </div>
     </div>
   </div>
@@ -114,6 +137,15 @@
       return firstName.charAt(0).toUpperCase() + firstName.slice(1);
     }
 
+    // Calculate hours difference from timestamp
+    function getHoursDiff(timestamp) {
+      if (!timestamp) return 0;
+      const emailDate = new Date(timestamp);
+      const now = new Date();
+      const diffMs = now - emailDate;
+      return diffMs / (1000 * 60 * 60); // Convert to hours
+    }
+
     // CSV parser that handles quotes and commas
     function parseCSV(text) {
       const rows = [];
@@ -146,17 +178,19 @@
         fetchCSVData(FORM_RESPONSES_URL)
       ]);
 
-      // Create a map of msgId → {status, agent}
+      // Create a map of msgId → {status, agent, timestamp}
       const statusMap = {};
       formData.forEach(r => {
         const msgId = (r.msgID || r.msgId || "").trim();
         const status = (r.Status || r.status || "").trim();
         const agentEmail = (r['Email Address'] || r.agentEmail || r.email || "").trim();
+        const timestamp = (r.Timestamp || r.timestamp || "").trim();
         
         if (msgId !== "") {
           statusMap[msgId] = {
             status: status || "Closed",
-            agent: extractName(agentEmail)
+            agent: extractName(agentEmail),
+            timestamp: timestamp
           };
         }
       });
@@ -182,20 +216,45 @@
         if (statusMap[msgId]) {
           email.formStatus = statusMap[msgId].status;
           email.assignedAgent = statusMap[msgId].agent;
+          email.formTimestamp = statusMap[msgId].timestamp;
         } else {
           email.formStatus = "Open";
           email.assignedAgent = "-";
+          email.formTimestamp = null;
         }
       });
 
-      document.getElementById("total").textContent = filtered.length;
-      window.filteredData = filtered;
+      // Separate open and in-progress
+      const openEmails = filtered.filter(e => e.formStatus === "Open");
+      const inProgressEmails = filtered.filter(e => e.formStatus.toLowerCase() === "in-progress");
+
+      // Calculate aging for in-progress emails
+      let aging24 = 0, aging48 = 0, aging72 = 0;
+      inProgressEmails.forEach(email => {
+        const hours = getHoursDiff(email.formTimestamp);
+        if (hours > 72) aging72++;
+        else if (hours > 48) aging48++;
+        else if (hours > 24) aging24++;
+      });
+
+      // Update counters
+      document.getElementById("openCount").textContent = openEmails.length;
+      document.getElementById("inprogressCount").textContent = inProgressEmails.length;
+      document.getElementById("aging24").textContent = aging24;
+      document.getElementById("aging48").textContent = aging48;
+      document.getElementById("aging72").textContent = aging72;
+
+      // Store data globally
+      window.openEmails = openEmails;
+      window.inProgressEmails = inProgressEmails;
     }
 
-    function showDetails() {
+    function showDetails(type) {
       document.getElementById("summary-page").style.display = "none";
       document.getElementById("details-page").style.display = "block";
-      renderTable(window.filteredData || []);
+      
+      const dataToShow = type === 'open' ? window.openEmails : window.inProgressEmails;
+      renderTable(dataToShow || []);
     }
 
     function backToSummary() {
@@ -210,7 +269,7 @@
     function renderTable(data) {
       const container = document.getElementById("table-container");
       if (data.length === 0) {
-        container.innerHTML = "<p>No open emails 🎉</p>";
+        container.innerHTML = "<p>No emails in this category 🎉</p>";
         return;
       }
 
@@ -234,6 +293,3 @@
   </script>
 </body>
 </html>
-
-
-
