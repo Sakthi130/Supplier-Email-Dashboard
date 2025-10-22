@@ -290,15 +290,38 @@
     }
 
     loadDashboard();
+    // Keep TV awake - multiple techniques
+    // 1. Simulate mouse movement every 2 minutes
     setInterval(() => {
-      const event = new MouseEvent('click', {
+      const moveEvent = new MouseEvent('mousemove', {
         view: window,
         bubbles: true,
-        cancelable: true
+        cancelable: true,
+        clientX: Math.random() * window.innerWidth,
+        clientY: Math.random() * window.innerHeight
       });
-      document.body.dispatchEvent(event);
+      document.body.dispatchEvent(moveEvent);
+    }, 2 * 60 * 1000);
+    
+    // 2. Simulate keyboard activity every 3 minutes
+    setInterval(() => {
+      const keyEvent = new KeyboardEvent('keypress', {
+        bubbles: true,
+        cancelable: true,
+        key: 'Shift'
+      });
+      document.body.dispatchEvent(keyEvent);
     }, 3 * 60 * 1000);
+    // 3. Play silent video to keep screen active (fallback)
+    const video = document.createElement('video');
+    video.style.display = 'none';
+    video.loop = true;
+    video.muted = true;
+    video.src = 'data:video/mp4;base64,AAAAIGZ0eXBpc29tAAACAGlzb21pc28yYXZjMQAAAAhmcmVlAAAA2m1kYXQAAAKuBgX//4ncRem95tlIt5Ys2CDZI+7veDI2NCAtIGNvcmUgMTQ4IHIyNjQzIDVjNjU3MDQgLSBILjI2NC9NUEVHLTQgQVZDIGNvZGVjIC0gQ29weWxlZnQgMjAwMy0yMDE1IC0gaHR0cDovL3d3dy52aWRlb2xhbi5vcmcveDI2NC5odG1sIC0gb3B0aW9uczogY2FiYWM9MSByZWY9MyBkZWJsb2NrPTE6MDowIGFuYWx5c2U9MHgzOjB4MTEzIG1lPWhleCBzdWJtZT03IHBzeT0xIHBzeV9yZD0xLjAwOjAuMDAgbWl4ZWRfcmVmPTEgbWVfcmFuZ2U9MTYgY2hyb21hX21lPTEgdHJlbGxpcz0xIDh4OGRjdD0xIGNxbT0wIGRlYWR6b25lPTIxLDExIGZhc3RfcHNraXA9MSBjaHJvbWFfcXBfb2Zmc2V0PS0yIHRocmVhZHM9MSBsb29rYWhlYWRfdGhyZWFkcz0xIHNsaWNlZF90aHJlYWRzPTAgbnI9MCBkZWNpbWF0ZT0xIGludGVybGFjZWQ9MCBibHVyYXlfY29tcGF0PTAgY29uc3RyYWluZWRfaW50cmE9MCBiZnJhbWVzPTMgYl9weXJhbWlkPTIgYl9hZGFwdD0xIGJfYmlhcz0wIGRpcmVjdD0xIHdlaWdodGI9MSBvcGVuX2dvcD0wIHdlaWdodHA9MiBrZXlpbnQ9MjUwIGtleWludF9taW49MSBzY2VuZWN1dD00MCBpbnRyYV9yZWZyZXNoPTAgcmNfbG9va2FoZWFkPTQwIHJjPWNyZiBtYnRyZWU9MSBjcmY9MjMuMCBxY29tcD0wLjYwIHFwbWluPTAgcXBtYXg9NjkgcXBzdGVwPTQgaXBfcmF0aW89MS40MCBhcT0xOjEuMDAAgAAAAAwliIQAV/0TAAYdoBAAAAMAAAMAAAMAAAMAAQAAAwAAJ2AyYQxsAAAABGWIhAAy//73v4AKVaRAAAP5YSEgAAADAAADAAADAAADAAAHgvugkks=';
+    document.body.appendChild(video);
+    video.play().catch(() => {});
   </script>
 </body>
 </html>
+
 
